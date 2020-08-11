@@ -24,7 +24,7 @@ public class ConvertorTools {
      */
     public static Map<Class<?>, Convertor> CONVERTOR_CACHE = new ConcurrentHashMap<>();
 
-    public static  <T> void convertSingle(T t) {
+    public static <T> void convertSingle(T t) {
         try {
             Field[] fields = t.getClass().getDeclaredFields();
             for (Field field : fields) {
@@ -36,10 +36,8 @@ public class ConvertorTools {
                 String sourceFieldName = enhance.source();
                 Field sourceField = null;
                 sourceField = t.getClass().getDeclaredField(sourceFieldName);
+                sourceField.setAccessible(true);
 
-                if (!sourceField.canAccess(t)) {
-                    sourceField.setAccessible(true);
-                }
                 Object sourceObj = sourceField.get(t);
                 if (sourceObj == null) {
                     continue;
@@ -55,7 +53,7 @@ public class ConvertorTools {
                         return null;
                     });
 
-                    Object value = convertor.convertSingle(sourceField.get(t),enhance.targetIdentity());
+                    Object value = convertor.convertSingle(sourceField.get(t), enhance.targetIdentity());
                     field.set(t, value);
 
                 }
@@ -63,10 +61,10 @@ public class ConvertorTools {
                     // 走默认SQL的方式
                     Class<?> targetEntity = enhance.targetEntity();
                     String tableName = MapperTools.tableNameFromCls(targetEntity);
-                    SQL sql = new SQL(){{
+                    SQL sql = new SQL() {{
                         SELECT(enhance.targetField());
                         FROM(tableName);
-                        WHERE(enhance.targetIdentity()+"="+sourceObj);
+                        WHERE(enhance.targetIdentity() + "=" + sourceObj);
                     }};
 
                     BaseMapper baseMapper = (BaseMapper) ContextHolder.getApplicationContext().getBean(tableName + "Mapper");
@@ -89,7 +87,7 @@ public class ConvertorTools {
      * @param cls  当前List里面的实体类型
      * @param <T>
      */
-    public static  <T> void convertList(List<T> list, Class<T> cls) {
+    public static <T> void convertList(List<T> list, Class<T> cls) {
         //先获取到有哪些字段需要注入
         Field[] fields = cls.getDeclaredFields();
         // 记录下使用Convertor转化的那些 field-List<Long> idList;
@@ -118,7 +116,7 @@ public class ConvertorTools {
             for (T t : list) {
                 try {
                     Object o = sourceField.get(t);
-                    if(o!=null){
+                    if (o != null) {
                         set.add(o);
                     }
                 } catch (IllegalAccessException e) {
@@ -148,7 +146,7 @@ public class ConvertorTools {
         if (convertorMap.isEmpty()) {
             return;
         }
-        Map<Field,Map<Object,Object>> valueMap = new HashMap<>();
+        Map<Field, Map<Object, Object>> valueMap = new HashMap<>();
         convertorMap.forEach((key, value) -> {
             EnhanceTool enhanceTool = key.getAnnotation(EnhanceTool.class);
             List<Object> objectList = new ArrayList<>(value);
@@ -156,10 +154,10 @@ public class ConvertorTools {
             String targetField = enhanceTool.targetField();
             String targetIdentity = enhanceTool.targetIdentity();
             String tableName = MapperTools.pureTableNameFromCls(targetClass);
-            SQL sql = new SQL(){{
-                SELECT(targetIdentity,targetField);
+            SQL sql = new SQL() {{
+                SELECT(targetIdentity, targetField);
                 FROM(tableName);
-                WHERE(targetIdentity +" in ("+MapperTools.convertList2Str(objectList)+")");
+                WHERE(targetIdentity + " in (" + MapperTools.convertList2Str(objectList) + ")");
             }};
 
             BaseMapper baseMapper = (BaseMapper) ContextHolder.getApplicationContext().getBean(StringTools.underScope2Camel(tableName) + "Mapper");
@@ -178,23 +176,21 @@ public class ConvertorTools {
                     e.printStackTrace();
                 }
             }
-            valueMap.put(key,pairMap);
+            valueMap.put(key, pairMap);
 
         });
         for (T t : list) {
-          valueMap.forEach((key,map)->{
-              try {
-                  EnhanceTool enhanceTool = key.getAnnotation(EnhanceTool.class);
-                  Field sourceField = cls.getDeclaredField(enhanceTool.source());
-                  if (!sourceField.canAccess(t)) {
-                      sourceField.setAccessible(true);
-                  }
-                  Object o = map.get(sourceField.get(t));
-                  key.set(t, o);
-              } catch (NoSuchFieldException | IllegalAccessException e) {
-                  e.printStackTrace();
-              }
-          });
+            valueMap.forEach((key, map) -> {
+                try {
+                    EnhanceTool enhanceTool = key.getAnnotation(EnhanceTool.class);
+                    Field sourceField = cls.getDeclaredField(enhanceTool.source());
+                    sourceField.setAccessible(true);
+                    Object o = map.get(sourceField.get(t));
+                    key.set(t, o);
+                } catch (NoSuchFieldException | IllegalAccessException e) {
+                    e.printStackTrace();
+                }
+            });
         }
 
 
@@ -204,7 +200,7 @@ public class ConvertorTools {
         if (convertorMap.isEmpty()) {
             return;
         }
-        Map<Field,Map<Object,Object>> valueMap = new HashMap<>();
+        Map<Field, Map<Object, Object>> valueMap = new HashMap<>();
         //通过convert去取值
         convertorMap.forEach((key, value) -> {
             EnhanceTool enhanceTool = key.getAnnotation(EnhanceTool.class);
@@ -217,19 +213,17 @@ public class ConvertorTools {
                 return null;
             });
             List<Object> valueList = new ArrayList<>(value);
-            Map<Object, Object> map = convertor.convertList(valueList,enhanceTool.targetIdentity());
-            valueMap.put(key,map);
+            Map<Object, Object> map = convertor.convertList(valueList, enhanceTool.targetIdentity());
+            valueMap.put(key, map);
         });
 
         // 取完值之后, 去充填list
         for (T t : list) {
-            valueMap.forEach((key,map)->{
+            valueMap.forEach((key, map) -> {
                 try {
                     EnhanceTool enhanceTool = key.getAnnotation(EnhanceTool.class);
                     Field sourceField = cls.getDeclaredField(enhanceTool.source());
-                    if (!sourceField.canAccess(t)) {
-                        sourceField.setAccessible(true);
-                    }
+                    sourceField.setAccessible(true);
                     Object sourceValue = sourceField.get(t);
                     Object o = map.get(String.valueOf(sourceValue));
                     key.set(t, o);

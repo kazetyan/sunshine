@@ -132,11 +132,11 @@ public class DomainDesc implements CommonModel {
         }
         map.forEach((key,objValue)->{
             String path = targetDir+"/"+modelName+key;
-            try {
-                Files.writeString(Paths.get(path), objValue.toString());
-            } catch (IOException e) {
-                e.printStackTrace();
-            }
+//            try {
+//                Files.writeString(Paths.get(path), objValue.toString());
+//            } catch (IOException e) {
+//                e.printStackTrace();
+//            }
         });
     }
 }
